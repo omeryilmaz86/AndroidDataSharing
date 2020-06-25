@@ -1,0 +1,39 @@
+<resources>
+    <string name="app_name">My Application</string>
+
+    <string name="action_cancel">Cancel</string>
+    <string name="str_another_panda">Finding Another Device Around You</string>
+    <string name="str_scan_qr">Scan this QR Code from \nReceiver\'s End.</string>
+    <string name="str_send_files">Send Multiple Songs,\nPlaylists, Albums, Artists, Genres \nand Folders.</string>
+    <string name="str_select_send_Receive">Select Send / Receive</string>
+    <string name="str_pressed_send">If pressed Send : Auto generates QR Code.</string>
+    <string name="str_pressed_receive">If pressed Receive :</string>
+    <string name="str_pressed_receive_step1">A) Auto Search and Select the Device </string>
+    <string name="str_pressed_receive_step2">B) Scan the QR Code of Sender\'s Device. </string>
+    <string name="str_pressed_receive_step3">Visit Other Tabs to Select &amp; Send Files</string>
+    <string name="txt_receive">Receive</string>
+    <string name="txt_send">Send</string>
+    <string name="str_disconnect">Disconnect</string>
+    <string name="str_warning">Warning</string>
+    <string name="str_wifi_assistance">Wi-Fi Assistant</string>
+    <string name="str_go_to_turn_off">Go to Turn off</string>
+    <string name="str_redmi_xiomi_users">RedMi/XioMi users,\n</string>
+    <string name="str_turn_off_assistant">Please turn OFF Wi-Fi assistant at Settings->Wi-Fi->Advanced Settings.\n\n</string>
+    <string name="str_connection_failure">If Wi-Fi assistant is ON, it may cause connection failure!!!</string>
+    <string name="str_yes">YES</string>
+    <string name="str_not_yet">Not Yet</string>
+    <string name="str_turn_off_hotspot">Turn off hotspot</string>
+    <string name="str_note">Note:</string>
+    <string name="str_disconnection_message">Software caused connection abort</string>
+    <string name="str_file_transfering">File transferring …</string>
+    <string name="str_require_permission">Required Permission</string>
+    <string name="str_enable_write">Please enable the write permission in order to connect to device</string>
+    <string name="str_turn_off_wifi">Turn off hotspot to send and click on send button again…</string>
+    <string name="str_connect_device">Connect to another device</string>
+    <string name="title_location_services">Location Services</string>
+    <string name="message_location_services">Location services must be enabled in order to discover devices.</string>
+    <string name="action_enable">Enable</string>
+    <string name="txt_generating">Generating QR Code</string>
+    <string name="txt_connecting">Connecting</string>
+    <string name="str_turn_off_wifi_assistant">Did you Turn Off Wif-Fi assistant</string>
+</resources>
