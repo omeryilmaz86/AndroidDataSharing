@@ -16,6 +16,8 @@ public interface TCPListener {
     void showReceivedMessage(int totalFile);
 
 
+	void fileReceived(long id, File file1);
+
     void CreateProgressDialog();
 
 

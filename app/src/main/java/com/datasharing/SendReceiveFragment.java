@@ -8,6 +8,7 @@ import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -63,6 +64,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.blikoon.qrcodescanner.QrCodeActivity;
 import com.datasharing.databinding.FragmentSendReceiveBinding;
 
+import net.alhazmy13.mediapicker.Image.ImagePicker;
+import net.alhazmy13.mediapicker.Video.VideoPicker;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -87,7 +91,9 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import static android.app.Activity.RESULT_OK;
 import static android.net.wifi.WifiManager.WIFI_STATE_DISABLED;
+import static com.datasharing.JsonHelper.FILE;
 
 public class SendReceiveFragment extends Fragment implements
        View.OnClickListener,
@@ -96,13 +102,12 @@ public class SendReceiveFragment extends Fragment implements
     private AppCompatActivity mainActivity;
     private TCPCommunicator tcpClient;
     private TextView txtTitle;
-
+    ArrayList<SendFileModel> filesList = new ArrayList<>();
     private int PERMISSION_CAMERA_REQUEST_CODE = 4;
     private int PERMISSION_REQUEST_CODE = 1;
     private int PERMISSION_REQUEST_CODE_WRITE = 2;
     private int PERMISSION_REQUEST_CODE_HOTSPOT = 7;
     private int PERMISSION_REQUEST_TURN_OFF_HOTSPOT = 8;
-
     private SharedPreferences prefs;
     public boolean isSender, isReceiver;
     private boolean mShouldStartScan = false;
@@ -218,6 +223,42 @@ public class SendReceiveFragment extends Fragment implements
                 resetEverything("Stop button");
             }
             break;
+            case R.id.txt_send_files:
+                // setup the alert builder
+                AlertDialog.Builder builder = new AlertDialog.Builder(mainActivity);
+                builder.setTitle("Choose type");
+
+// add a list
+                String[] animals = {"Image", "Video"};
+                builder.setItems(animals, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        switch (which) {
+                            case 0: // Image
+                                new ImagePicker.Builder(mainActivity)
+                                        .mode(ImagePicker.Mode.CAMERA_AND_GALLERY)
+                                        .compressLevel(ImagePicker.ComperesLevel.MEDIUM)
+                                        .directory(ImagePicker.Directory.DEFAULT)
+                                        .allowMultipleImages(false)
+                                        .allowOnlineImages(false)
+                                        .build();
+                                break;
+                            case 1: // Video
+                                new VideoPicker.Builder(mainActivity)
+                                        .mode(VideoPicker.Mode.CAMERA_AND_GALLERY)
+                                        .extension(VideoPicker.Extension.MP4)
+                                        .build();
+                                break;
+                        }
+                    }
+                });
+
+// create and show the alert dialog
+                AlertDialog dialog = builder.create();
+                dialog.show();
+
+
+                break;
             case R.id.bnt_stop_receive:
                 resetEverything("Stop receive button");
 
@@ -245,6 +286,117 @@ public class SendReceiveFragment extends Fragment implements
             break;
 
         }
+    }
+
+    /**
+     * Send Files to receiver
+     *
+     * @param list files
+     */
+    @SuppressLint("NewApi")
+    public void sendFiles(ArrayList<SendFileModel> list) {
+        if (list.size() == 0) return;
+        try {
+            Runnable runnable = () -> {
+                try {
+                    showProgressDialog();
+                    try {
+                        for (int i = 0; i < list.size(); i++) {
+                            if (list.get(i).type == null || list.get(i).type.equals(FILE)) {
+                                try {
+                                    JSONObject jsonObject = new JSONObject();
+                                    jsonObject.put(FILE, true);
+                                    try {
+                                        String outMsg = jsonObject.toString() + System.getProperty("line.separator");
+                                        timer.schedule(new TimerTask() {
+                                            @Override
+                                            public void run() {
+                                                try {
+                                                    out.close();
+                                                } catch (IOException e) {
+                                                    e.printStackTrace();
+                                                }
+                                            }
+                                        }, 5000);
+                                        out.write(outMsg);
+                                        cancelTimer();
+                                        out.flush();
+                                        Thread.sleep(1000);
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                                SendFileModel sendFileModel = list.get(i);
+                                ArrayList<File> files = new ArrayList<>(list.get(i).files);
+                                long totalSize = 0;
+                                float sendSize = 0;
+                                for (int j = 0; j < files.size(); j++) {
+                                    totalSize = totalSize + files.get(j).length();
+
+                                    DataOutputStream dataOS = new DataOutputStream(socket.getOutputStream());
+                                    OutputStream out = socket.getOutputStream();
+                                    dataOS.writeLong(totalSize);
+                                    dataOS.writeInt(files.size());
+                                    File file = files.get(j);
+                                    int size = (int) (file.length());
+                                    dataOS.writeInt(size);
+                                    dataOS.writeUTF(file.getName());
+                                    dataOS.writeUTF(file.getParentFile().getName());
+                                    byte[] bytes = new byte[16 * 1024];
+                                    InputStream in = new FileInputStream(file);
+                                    int count;
+                                    while ((count = in.read(bytes)) > 0) {
+                                        sendSize = sendSize + count;
+                                        timer.schedule(new TimerTask() {
+                                            @Override
+                                            public void run() {
+                                                try {
+                                                    out.close();
+                                                } catch (IOException e) {
+                                                    e.printStackTrace();
+                                                }
+                                            }
+                                        }, 5000);
+                                        out.write(bytes, 0, count);
+                                        cancelTimer();
+                                        float per = (sendSize / totalSize) * 100;
+                                        Log.d("Percenteage", per + "");
+//                                        mainActivity.runOnUiThread(() -> progressdialog.setProgress((int) per));
+                                    }
+                                }
+
+                                sendFileModel.isSend = true;
+                                ArrayList<SendFileModel> sendFileModels = (ArrayList<SendFileModel>) ((MyApplicationClass) (mainActivity.getApplicationContext())).getFilesList();
+                                sendFileModels.set(0, sendFileModel);
+                                getActivity().runOnUiThread(() -> {
+
+                                });
+
+                            }
+                        }
+                        ((MyApplicationClass) (mainActivity.getApplicationContext())).reset();
+                        dismissDialog();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        mainActivity.runOnUiThread(() -> {
+                            showMessage(mainActivity.getResources().getString(R.string.str_device_disconnected));
+                            resetEverything("Send files");
+                        });
+
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            };
+            Thread thread = new Thread(runnable);
+            thread.start();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
 
@@ -742,7 +894,10 @@ public class SendReceiveFragment extends Fragment implements
         });
     }
 
-
+    @Override
+    public void fileReceived(long id, File file1) {
+        mainActivity.runOnUiThread(() -> Toast.makeText(mainActivity, "File received in DataSharing folder", Toast.LENGTH_SHORT).show());
+    }
 
 
     @SuppressLint("StaticFieldLeak")
@@ -807,6 +962,12 @@ public class SendReceiveFragment extends Fragment implements
                             });
 
 
+                        }else if (jsonObject.has(JsonHelper.FILE)) {
+                            try {
+                                tcpClient.receiveFiles(new DataInputStream(socket.getInputStream()));
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -1264,7 +1425,50 @@ public class SendReceiveFragment extends Fragment implements
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PERMISSION_REQUEST_CODE || requestCode == PERMISSION_REQUEST_CODE_WRITE || requestCode == ACTION_LOCATION_SOURCE_SETTINGS || requestCode == PERMISSION_REQUEST_CODE_HOTSPOT) {
+        if (requestCode == ImagePicker.IMAGE_PICKER_REQUEST_CODE && resultCode == RESULT_OK) {
+            List<String> mPaths = data.getStringArrayListExtra(ImagePicker.EXTRA_IMAGE_PATH);
+
+            SendFileModel sendFileModel = new SendFileModel();
+            Set<File> files = new HashSet<>();
+            for(int i=0;i<mPaths.size();i++)
+            files.add(new File(mPaths.get(i)));
+            sendFileModel.files = new ArrayList<>(files);
+            sendFileModel.type = FILE;
+            filesList.add(sendFileModel);
+
+            ArrayList<SendFileModel> map = (ArrayList<SendFileModel>) ((MyApplicationClass) (getActivity().getApplicationContext())).getFilesList().clone();
+            map.add(sendFileModel);
+            ((MyApplicationClass) (getActivity().getApplicationContext())).setMap(map);
+
+            if (isSender) {
+                    sendFiles(filesList);
+                } else if (isReceiver) {
+                    ArrayList<SendFileModel> sendFileModels = ((MyApplicationClass) (getActivity().getApplicationContext())).getFilesList();
+                    tcpClient.sendFiles(sendFileModels);
+                }
+        }else if (requestCode == VideoPicker.VIDEO_PICKER_REQUEST_CODE && resultCode == RESULT_OK) {
+            List<String> mPaths =  data.getStringArrayListExtra(VideoPicker.EXTRA_VIDEO_PATH);
+            Log.d("File size",mPaths.size()+"");
+            SendFileModel sendFileModel = new SendFileModel();
+            Set<File> files = new HashSet<>();
+            for(int i=0;i<mPaths.size();i++)
+                files.add(new File(mPaths.get(i)));
+            sendFileModel.files = new ArrayList<>(files);
+            sendFileModel.type = FILE;
+            filesList.add(sendFileModel);
+
+            ArrayList<SendFileModel> map = (ArrayList<SendFileModel>) ((MyApplicationClass) (getActivity().getApplicationContext())).getFilesList().clone();
+            map.add(sendFileModel);
+            ((MyApplicationClass) (getActivity().getApplicationContext())).setMap(map);
+
+            if (isSender) {
+                sendFiles(filesList);
+            } else if (isReceiver) {
+                ArrayList<SendFileModel> sendFileModels = ((MyApplicationClass) (getActivity().getApplicationContext())).getFilesList();
+                tcpClient.sendFiles(sendFileModels);
+            }
+        }
+        else if (requestCode == PERMISSION_REQUEST_CODE || requestCode == PERMISSION_REQUEST_CODE_WRITE || requestCode == ACTION_LOCATION_SOURCE_SETTINGS || requestCode == PERMISSION_REQUEST_CODE_HOTSPOT) {
             if (checkAndRequestPermissions().size() == 0) {
                 if (!locationEnabled(mainActivity)) {
                     requestLocationPermissionDialog();
@@ -1291,8 +1495,8 @@ public class SendReceiveFragment extends Fragment implements
             }
         } else if (requestCode == PERMISSION_REQUEST_TURN_OFF_HOTSPOT) {
             showAgainWiFiAssistDialog();
-        } else {
-            if (resultCode != Activity.RESULT_OK) {
+        }else {
+            if (resultCode != RESULT_OK) {
                 if (data == null)
                     return;
                 //Getting the passed result

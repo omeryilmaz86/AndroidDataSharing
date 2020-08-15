@@ -36,4 +36,5 @@
     <string name="txt_generating">Generating QR Code</string>
     <string name="txt_connecting">Connecting</string>
     <string name="str_turn_off_wifi_assistant">Did you Turn Off Wif-Fi assistant</string>
+    <string name="str_device_disconnected">Device Disconnected</string>
 </resources>
